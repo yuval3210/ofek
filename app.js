@@ -59,8 +59,23 @@
   function buildReason(reason, index) {
     const el = make('div', 'slide slide--reason');
 
-    const bg = make('div', 'slide-bg');
-    bg.style.backgroundImage = "url('" + reason.image + "')";
+    if (isVideo(reason.image)) {
+      var video = document.createElement('video');
+      video.className = 'slide-video';
+      video.src = reason.image;
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.preload = 'auto';
+      el.appendChild(video);
+    } else {
+      var bg = make('div', 'slide-bg');
+      bg.style.backgroundImage = "url('" + reason.image + "')";
+      el.appendChild(bg);
+    }
 
     const overlay = make('div', 'slide-overlay');
 
@@ -83,7 +98,7 @@
       content.appendChild(storyBtn);
     }
 
-    el.append(bg, overlay, content);
+    el.append(overlay, content);
     app.appendChild(el);
   }
 
@@ -112,6 +127,16 @@
       function (entries) {
         entries.forEach(function (entry) {
           entry.target.classList.toggle('active', entry.isIntersecting);
+
+          // Play/pause video backgrounds based on visibility
+          var video = entry.target.querySelector('.slide-video');
+          if (video) {
+            if (entry.isIntersecting) {
+              video.play().catch(function () {});
+            } else {
+              video.pause();
+            }
+          }
         });
       },
       { root: app, threshold: 0.55 }
@@ -147,6 +172,7 @@
 
   function setupMusic() {
     audio.src = CONFIG.music;
+    audio.loop = true;
     audio.load(); // pre-buffer on iOS
 
     musicBtn.classList.add('visible');
@@ -290,6 +316,10 @@
   }
 
   // ── Helpers ──
+
+  function isVideo(path) {
+    return /\.(mp4|webm|mov|ogg)$/i.test(path);
+  }
 
   function addFloatingHearts(container, count) {
     var wrapper = make('div', 'floating-hearts');

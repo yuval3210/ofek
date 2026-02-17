@@ -82,6 +82,18 @@ body {
   100% { transform: scale(1.08) translate(-1%, -1%); }
 }
 
+/* Video background layer */
+.slide-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background-color: #c8e6ec;
+  z-index: 0;
+}
+
 /* Dark gradient overlay */
 .slide-overlay {
   position: absolute;
