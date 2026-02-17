@@ -38,11 +38,7 @@
     const title = make('h1', 'intro-title');
     title.textContent = CONFIG.title;
 
-    const btn = make('button', 'intro-start');
-    btn.textContent = '\u2661 התחילי';
-    btn.addEventListener('click', handleStart);
-
-    content.append(name, title, btn);
+    content.append(name, title);
     el.appendChild(content);
 
     addFloatingHearts(el, 12);
@@ -303,15 +299,6 @@
     musicBtn.classList.add('playing');
     musicBtn.classList.remove('muted');
     hideSoundHint();
-  }
-
-  function handleStart() {
-    audio.play();
-    onPlaying();
-    var slides = app.querySelectorAll('.slide');
-    if (slides[1]) {
-      slides[1].scrollIntoView({ behavior: 'smooth' });
-    }
   }
 
   function showSoundHint() {
