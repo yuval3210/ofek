@@ -20,6 +20,7 @@
     CONFIG.reasons.forEach(buildReason);
     if (CONFIG.closing) buildClosing();
 
+    setupPreloading();
     setupObserver();
     setupScroll();
     setupStory();
@@ -59,23 +60,26 @@
   function buildReason(reason, index) {
     const el = make('div', 'slide slide--reason');
 
+    // Defer media loading - setupPreloading will set src in order
     if (isVideo(reason.image)) {
       var video = document.createElement('video');
       video.className = 'slide-video';
-      video.src = reason.image;
-      video.autoplay = true;
+      video.dataset.src = reason.image;
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
-      video.preload = 'auto';
       el.appendChild(video);
     } else {
       var bg = make('div', 'slide-bg');
-      bg.style.backgroundImage = "url('" + reason.image + "')";
+      bg.dataset.src = reason.image;
       el.appendChild(bg);
     }
+
+    var loader = make('div', 'slide-loader');
+    loader.innerHTML = '<div class="slide-loader-spinner"></div>';
+    el.appendChild(loader);
 
     const overlay = make('div', 'slide-overlay');
 
@@ -120,6 +124,63 @@
     app.appendChild(el);
   }
 
+  // ── Sequential media preloading ──
+  //
+  // Loads slide media one-by-one in presentation order so that
+  // upcoming slides are ready before the user reaches them.
+  // A spinner shows only if the user scrolls faster than the queue.
+
+  function setupPreloading() {
+    var slides = Array.from(app.querySelectorAll('.slide--reason'));
+    var idx = 0;
+
+    function loadNext() {
+      if (idx >= slides.length) return;
+      loadSlideMedia(slides[idx], function () {
+        idx++;
+        loadNext();
+      });
+    }
+
+    loadNext();
+  }
+
+  function loadSlideMedia(slide, onComplete) {
+    if (slide.dataset.loaded) {
+      if (onComplete) onComplete();
+      return;
+    }
+    slide.dataset.loaded = 'true';
+
+    var video = slide.querySelector('.slide-video');
+    var bg = slide.querySelector('.slide-bg');
+
+    function done() {
+      slide.classList.add('media-loaded');
+      // If this slide is already visible, start video playback
+      if (video && slide.classList.contains('active')) {
+        video.play().catch(function () {});
+      }
+      if (onComplete) onComplete();
+    }
+
+    if (video && video.dataset.src) {
+      video.addEventListener('canplay', done, { once: true });
+      video.addEventListener('error', done, { once: true });
+      video.src = video.dataset.src;
+    } else if (bg && bg.dataset.src) {
+      var img = new Image();
+      img.onload = function () {
+        bg.style.backgroundImage = "url('" + bg.dataset.src + "')";
+        done();
+      };
+      img.onerror = done;
+      img.src = bg.dataset.src;
+    } else {
+      done();
+    }
+  }
+
   // ── Active slide detection ──
 
   function setupObserver() {
@@ -130,7 +191,7 @@
 
           // Play/pause video backgrounds based on visibility
           var video = entry.target.querySelector('.slide-video');
-          if (video) {
+          if (video && video.src) {
             if (entry.isIntersecting) {
               video.play().catch(function () {});
             } else {
