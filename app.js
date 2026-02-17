@@ -137,34 +137,90 @@
   }
 
   // ── Music ──
+  //
+  // iOS WebKit requires audio.play() to be called *synchronously*
+  // inside a user-gesture handler (click / touchend). No wrappers,
+  // no stopPropagation, no async gaps.
 
   var soundHint = null;
+  var audioUnlocked = false;
 
   function setupMusic() {
     audio.src = CONFIG.music;
-    musicBtn.classList.add('visible');
-    musicBtn.addEventListener('click', toggleMusic);
+    audio.load(); // pre-buffer on iOS
 
-    // Try autoplay immediately
-    playAudio();
+    musicBtn.classList.add('visible');
 
     // Show the sound-on pill
     showSoundHint();
+
+    // ── Pill click: play directly (iOS needs this) ──
+    // Uses touchend for iOS + click for everything else
+    function onPillTap(e) {
+      e.preventDefault();
+      audio.play();
+      onPlaying();
+    }
+
+    // ── Global catch-all: any tap on the page starts music ──
+    function onFirstTap() {
+      if (isPlaying) return;
+      audio.play();
+      onPlaying();
+    }
+
+    // Pill listeners
+    setTimeout(function () {
+      if (soundHint) {
+        soundHint.addEventListener('touchend', onPillTap);
+        soundHint.addEventListener('click', onPillTap);
+      }
+    }, 0);
+
+    // Global listeners - any tap starts music
+    document.addEventListener('touchend', onFirstTap);
+    document.addEventListener('click', onFirstTap);
+
+    // Music toggle button
+    musicBtn.addEventListener('click', function (e) {
+      e.stopPropagation(); // don't trigger onFirstTap
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        musicBtn.classList.remove('playing');
+        musicBtn.classList.add('muted');
+      } else {
+        audio.play();
+        isPlaying = true;
+        musicBtn.classList.add('playing');
+        musicBtn.classList.remove('muted');
+        hideSoundHint();
+      }
+    });
+
+    // Try autoplay (will work on desktop, fail on mobile)
+    try {
+      var p = audio.play();
+      if (p && p.then) {
+        p.then(function () { onPlaying(); })
+         .catch(function () { /* blocked - waiting for tap */ });
+      }
+    } catch (e) {
+      // old browsers
+    }
   }
 
-  function playAudio() {
-    audio.play().then(function () {
-      isPlaying = true;
-      musicBtn.classList.add('playing');
-      musicBtn.classList.remove('muted');
-      hideSoundHint();
-    }).catch(function () {
-      // autoplay blocked - pill is visible for user to tap
-    });
+  function onPlaying() {
+    isPlaying = true;
+    audioUnlocked = true;
+    musicBtn.classList.add('playing');
+    musicBtn.classList.remove('muted');
+    hideSoundHint();
   }
 
   function handleStart() {
-    playAudio();
+    audio.play();
+    onPlaying();
     var slides = app.querySelectorAll('.slide');
     if (slides[1]) {
       slides[1].scrollIntoView({ behavior: 'smooth' });
@@ -180,11 +236,6 @@
       '<path d="M19.07 4.93a10 10 0 010 14.14"/>' +
       '</svg>' +
       '<span>\u05D4\u05E4\u05E2\u05D9\u05DC\u05D9 \u05E6\u05DC\u05D9\u05DC</span>';
-    // Clicking the pill always tries to play - never pauses
-    soundHint.addEventListener('click', function (e) {
-      e.stopPropagation();
-      playAudio();
-    });
     document.body.appendChild(soundHint);
     requestAnimationFrame(function () {
       soundHint.classList.add('visible');
@@ -200,17 +251,6 @@
       }
       soundHint = null;
     }, 500);
-  }
-
-  function toggleMusic() {
-    if (isPlaying) {
-      audio.pause();
-      isPlaying = false;
-      musicBtn.classList.remove('playing');
-      musicBtn.classList.add('muted');
-    } else {
-      playAudio();
-    }
   }
 
   // ── Story modal ──
