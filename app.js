@@ -91,7 +91,7 @@
 
     if (reason.story) {
       const storyBtn = make('button', 'story-btn');
-      storyBtn.textContent = '\u2661 \u05D9\u05E9 \u05DC\u05E0\u05D5 \u05E1\u05D9\u05E4\u05D5\u05E8';
+      storyBtn.textContent = '\u2661 הרחבה';
       storyBtn.addEventListener('click', function () {
         openStory(reason.story);
       });
